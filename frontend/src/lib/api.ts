@@ -1,6 +1,8 @@
 import type { AIAnalysisResult, MindmapFlowData } from '../types/session';
 
-const API_BASE = '/api';
+/** Dev: /api (Vite proxy). Vercel: rewrite trong vercel.json, hoặc set VITE_API_BASE khi deploy. */
+const API_BASE =
+  (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/$/, '') || '/api';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {

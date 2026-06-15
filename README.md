@@ -36,3 +36,22 @@ npm run dev
 - Lưu/xem/xóa ghi chú
 - Phân tích tư duy bằng Gemini AI
 - Dashboard thống kê tiến trình
+
+## Deploy (Railway backend + Vercel frontend)
+
+### Railway — backend
+
+1. Root Directory: `backend`
+2. Variables: `GEMINI_API_KEY`, `NODE_VERSION=22` (hoặc dùng `backend/railway.toml`)
+3. **Volume (bắt buộc để giữ ghi chú):** Service → Volumes → Add Volume → **Mount Path:** `/app/data`
+4. `DATA_DIR=/app/data` đã cấu hình sẵn trong `backend/railway.toml`
+5. Generate Domain → kiểm tra `https://<domain>/api/health`
+
+Log deploy sẽ in `📁 SQLite: /app/data/app.db` khi volume đúng.
+
+### Vercel — frontend
+
+1. Root Directory: `frontend`
+2. **Cách A:** Sửa `frontend/vercel.json` — thay `REPLACE_WITH_YOUR_RAILWAY_DOMAIN` bằng domain Railway (không có `https://`)
+3. **Cách B:** Trên Vercel thêm `VITE_API_BASE=https://<domain-railway>/api` (bỏ qua bước sửa vercel.json)
+4. Deploy → test Lưu ghi chú và Phân tích AI
