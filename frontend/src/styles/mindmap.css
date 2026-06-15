@@ -1,0 +1,170 @@
+.mindmap-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.mindmap-editor__toolbar {
+  position: relative;
+  z-index: 20;
+  flex-shrink: 0;
+  pointer-events: auto;
+}
+
+.mindmap-editor__viewport {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.mindmap-editor__viewport .react-flow {
+  width: 100%;
+  height: 100%;
+}
+
+/* Draw.io-style connectors: ẩn mặc định, hiện khi hover / chế độ nối */
+.mindmap-connect {
+  opacity: 0 !important;
+  border: none !important;
+  background: #22c55e !important;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 2;
+}
+
+.mindmap-connect-top,
+.mindmap-connect-bottom {
+  width: 28px !important;
+  height: 6px !important;
+  border-radius: 3px !important;
+}
+
+.mindmap-connect-left,
+.mindmap-connect-right {
+  width: 6px !important;
+  height: 28px !important;
+  border-radius: 3px !important;
+}
+
+.mindmap-node:hover .mindmap-connect,
+.mindmap-node--connectors .mindmap-connect,
+.mindmap-editor__viewport.is-connecting .mindmap-connect {
+  opacity: 1 !important;
+}
+
+.mindmap-connect:hover {
+  background: #16a34a !important;
+  transform: scale(1.15);
+}
+
+.mindmap-connect-target {
+  opacity: 0 !important;
+  width: 12px !important;
+  height: 12px !important;
+  min-width: 0 !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+/* Đường nối — mặc định */
+.mindmap-editor__viewport .react-flow__edge .react-flow__edge-path {
+  stroke: #94a3b8;
+  stroke-width: 2;
+  transition: stroke 0.12s ease, stroke-width 0.12s ease, filter 0.12s ease;
+}
+
+.mindmap-editor__viewport .react-flow__edge.selectable:hover:not(.selected) .react-flow__edge-path {
+  stroke: #60a5fa;
+  stroke-width: 3;
+}
+
+/* Đường đang được chọn */
+.mindmap-editor__viewport .react-flow__edge.selected .react-flow__edge-path,
+.mindmap-editor__viewport .react-flow__edge.mindmap-edge-selected .react-flow__edge-path {
+  stroke: #2563eb !important;
+  stroke-width: 4 !important;
+  filter: drop-shadow(0 0 4px rgba(37, 99, 235, 0.65));
+}
+
+.mindmap-editor__viewport .react-flow__connection-path {
+  stroke: #94a3b8;
+  stroke-width: 2;
+}
+
+/* Khi xuất PNG: ẩn UI phụ, chỉ giữ nodes + edges */
+.mindmap-exporting .react-flow__controls,
+.mindmap-exporting .react-flow__minimap,
+.mindmap-exporting .react-flow__panel,
+.mindmap-exporting .react-flow__attribution,
+.mindmap-exporting .react-flow__background {
+  display: none !important;
+}
+
+.mindmap-exporting .react-flow__handle,
+.mindmap-exporting .mindmap-connect,
+.mindmap-exporting .mindmap-node--connectors .mindmap-connect,
+.mindmap-exporting .mindmap-connect-target {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.mindmap-exporting .react-flow__node.selected,
+.mindmap-exporting .react-flow__node.selectable.selected {
+  box-shadow: none !important;
+}
+
+.mindmap-exporting .mindmap-node__body {
+  box-shadow: none !important;
+  --tw-ring-width: 0 !important;
+  --tw-ring-offset-width: 0 !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-shadow: 0 0 #0000 !important;
+}
+
+.mindmap-exporting .react-flow__edge.selected .react-flow__edge-path,
+.mindmap-exporting .react-flow__edge.mindmap-edge-selected .react-flow__edge-path {
+  stroke: #94a3b8 !important;
+  stroke-width: 2 !important;
+  filter: none !important;
+}
+
+/* React Flow controls & minimap — đồng bộ theme app */
+.mindmap-editor__viewport .mindmap-controls {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.mindmap-editor__viewport .mindmap-controls .react-flow__controls-button {
+  width: 28px;
+  height: 28px;
+  background: var(--card);
+  color: var(--foreground);
+  border-bottom-color: var(--border);
+}
+
+.mindmap-editor__viewport .mindmap-controls .react-flow__controls-button:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.mindmap-editor__viewport .mindmap-controls .react-flow__controls-button svg {
+  max-width: 14px;
+  max-height: 14px;
+}
+
+.mindmap-editor__viewport .mindmap-minimap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+@media (max-width: 639px) {
+  .mindmap-editor__viewport .mindmap-controls {
+    margin-bottom: 3.5rem;
+  }
+}

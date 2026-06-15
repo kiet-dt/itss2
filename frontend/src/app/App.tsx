@@ -1,18 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { WorkspaceView } from './components/WorkspaceView';
-import { JournalDialog } from './components/JournalDialog';
 import { NoteDetailView } from './components/NoteDetailView';
-import { DashboardOverview } from './components/DashboardOverview';
+import { DashboardStats } from './components/DashboardStats';
 import { ThemeToggle } from './components/ThemeToggle';
 import { api, type Note as ApiNote } from '../lib/api';
+import type { MindmapFlowData, NoteData } from '../types/session';
 import { toast } from 'sonner';
 
 interface Note {
   id: string;
   timestamp: Date;
   pseudocode: string;
-  mindmap: unknown;
+  mindmap: MindmapFlowData | null;
+  problemStatement: string;
   thinkingTime?: number;
 }
 
@@ -24,6 +25,7 @@ function toLocalNote(n: ApiNote): Note {
     timestamp: new Date(n.timestamp),
     pseudocode: n.pseudocode,
     mindmap: n.mindmap,
+    problemStatement: n.problemStatement ?? '',
     thinkingTime: n.thinkingTime,
   };
 }
@@ -31,11 +33,11 @@ function toLocalNote(n: ApiNote): Note {
 export default function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
   const [thinkingTime, setThinkingTime] = useState(15);
-  const [journalOpen, setJournalOpen] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
   const [viewingNote, setViewingNote] = useState<Note | null>(null);
   const [loading, setLoading] = useState(true);
+  const [newSessionKey, setNewSessionKey] = useState(0);
 
   const loadNotes = useCallback(async () => {
     try {
@@ -54,18 +56,38 @@ export default function App() {
 
   const handleStart = (minutes: number) => {
     setThinkingTime(minutes);
-    setViewMode('workspace');
     setCurrentNote(null);
+    setNewSessionKey((k) => k + 1);
+    setViewMode('workspace');
   };
 
-  const handleSaveNote = async (noteData: { pseudocode: string; mindmap: unknown }) => {
+  const handleNewNote = () => {
+    if (viewMode === 'workspace' && currentNote) {
+      if (!confirm('Tạo ghi chú mới? Hãy lưu trước nếu bạn cần giữ thay đổi hiện tại.')) {
+        return;
+      }
+    } else if (viewMode === 'workspace' && !currentNote) {
+      if (!confirm('Tạo phiên mới? Nội dung chưa lưu sẽ bị xóa.')) {
+        return;
+      }
+    }
+    setCurrentNote(null);
+    setNewSessionKey((k) => k + 1);
+    setViewMode('workspace');
+    setViewingNote(null);
+  };
+
+  const handleSaveNote = async (noteData: {
+    pseudocode: string;
+    mindmap: MindmapFlowData | null;
+    problemStatement: string;
+  }) => {
     try {
       if (currentNote) {
         await api.updateNote(currentNote.id, { ...noteData, thinkingTime });
         const updated: Note = { ...currentNote, ...noteData, thinkingTime };
         setNotes((prev) => prev.map((n) => (n.id === currentNote.id ? updated : n)));
         setCurrentNote(updated);
-        toast.success('Ghi chú đã được cập nhật!');
         return updated;
       }
 
@@ -73,7 +95,6 @@ export default function App() {
       const newNote = toLocalNote(created);
       setNotes((prev) => [newNote, ...prev]);
       setCurrentNote(newNote);
-      toast.success('Ghi chú đã được lưu!');
       return newNote;
     } catch {
       toast.error('Lưu ghi chú thất bại');
@@ -81,15 +102,19 @@ export default function App() {
     }
   };
 
-  const handleLoadNote = (note: Note) => {
+  const handleOpenNote = (note: Note) => {
+    if (currentNote?.id === note.id && viewMode === 'workspace') return;
+    if (
+      viewMode === 'workspace' &&
+      currentNote &&
+      !confirm('Chuyển sang ghi chú khác? Hãy lưu trước nếu bạn cần giữ thay đổi hiện tại.')
+    ) {
+      return;
+    }
     setCurrentNote(note);
     setThinkingTime(note.thinkingTime ?? 15);
     setViewMode('workspace');
-  };
-
-  const handleViewNote = (note: Note) => {
-    setViewingNote(note);
-    setViewMode('detail');
+    setViewingNote(null);
   };
 
   const handleEditNote = () => {
@@ -102,9 +127,8 @@ export default function App() {
   };
 
   const handleBackToJournal = () => {
-    setViewMode('dashboard');
+    setViewMode('workspace');
     setViewingNote(null);
-    setJournalOpen(true);
   };
 
   const handleBackToDashboard = () => {
@@ -119,6 +143,11 @@ export default function App() {
     try {
       await api.deleteNote(id);
       setNotes((prev) => prev.filter((n) => n.id !== id));
+      if (currentNote?.id === id) setCurrentNote(null);
+      if (viewingNote?.id === id) {
+        setViewingNote(null);
+        setViewMode('workspace');
+      }
       toast.success('Đã xóa ghi chú');
     } catch {
       toast.error('Xóa ghi chú thất bại');
@@ -128,7 +157,7 @@ export default function App() {
   if (loading && viewMode === 'dashboard') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">Đang tải...</p>
+        <p className="text-muted-foreground animate-pulse">Đang tải...</p>
       </div>
     );
   }
@@ -139,9 +168,13 @@ export default function App() {
 
       {viewMode === 'workspace' && (
         <WorkspaceView
+          key={currentNote?.id ?? `new-${newSessionKey}`}
           thinkingTime={thinkingTime}
           noteId={currentNote?.id}
-          onOpenJournal={() => setJournalOpen(true)}
+          notes={notes}
+          onOpenNote={handleOpenNote}
+          onNewNote={handleNewNote}
+          onDeleteNote={handleDeleteNote}
           onSaveNote={handleSaveNote}
           onBack={handleBackToDashboard}
           onOpenDashboard={() => setViewMode('overview')}
@@ -150,24 +183,12 @@ export default function App() {
       )}
 
       {viewMode === 'overview' && (
-        <DashboardOverview onBack={() => setViewMode('workspace')} />
+        <DashboardStats onBack={() => setViewMode('workspace')} />
       )}
 
       {viewMode === 'detail' && viewingNote && (
-        <NoteDetailView
-          note={viewingNote}
-          onBack={handleBackToJournal}
-          onEdit={handleEditNote}
-        />
+        <NoteDetailView note={viewingNote} onBack={handleBackToJournal} onEdit={handleEditNote} />
       )}
-
-      <JournalDialog
-        open={journalOpen}
-        onOpenChange={setJournalOpen}
-        notes={notes}
-        onViewNote={handleViewNote}
-        onDeleteNote={handleDeleteNote}
-      />
 
       <ThemeToggle />
     </div>

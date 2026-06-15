@@ -4,6 +4,26 @@ import db from '../db/database.js';
 
 const router = Router();
 
+function mapNote(row: {
+  id: string;
+  pseudocode: string;
+  mindmap: string | null;
+  problem_statement?: string;
+  thinking_time: number;
+  created_at: string;
+  updated_at: string;
+}) {
+  return {
+    id: row.id,
+    pseudocode: row.pseudocode,
+    mindmap: row.mindmap ? JSON.parse(row.mindmap) : null,
+    problemStatement: row.problem_statement ?? '',
+    thinkingTime: row.thinking_time,
+    timestamp: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 router.get('/', (_req, res) => {
   const rows = db
     .prepare('SELECT * FROM notes ORDER BY created_at DESC')
@@ -11,21 +31,13 @@ router.get('/', (_req, res) => {
     id: string;
     pseudocode: string;
     mindmap: string | null;
+    problem_statement: string;
     thinking_time: number;
     created_at: string;
     updated_at: string;
   }>;
 
-  res.json(
-    rows.map((row) => ({
-      id: row.id,
-      pseudocode: row.pseudocode,
-      mindmap: row.mindmap ? JSON.parse(row.mindmap) : null,
-      thinkingTime: row.thinking_time,
-      timestamp: row.created_at,
-      updatedAt: row.updated_at,
-    }))
-  );
+  res.json(rows.map(mapNote));
 });
 
 router.get('/:id', (req, res) => {
@@ -34,6 +46,7 @@ router.get('/:id', (req, res) => {
         id: string;
         pseudocode: string;
         mindmap: string | null;
+        problem_statement: string;
         thinking_time: number;
         created_at: string;
         updated_at: string;
@@ -45,30 +58,37 @@ router.get('/:id', (req, res) => {
     return;
   }
 
-  res.json({
-    id: row.id,
-    pseudocode: row.pseudocode,
-    mindmap: row.mindmap ? JSON.parse(row.mindmap) : null,
-    thinkingTime: row.thinking_time,
-    timestamp: row.created_at,
-    updatedAt: row.updated_at,
-  });
+  res.json(mapNote(row));
 });
 
 router.post('/', (req, res) => {
-  const { pseudocode = '', mindmap = null, thinkingTime = 15 } = req.body;
+  const {
+    pseudocode = '',
+    mindmap = null,
+    problemStatement = '',
+    thinkingTime = 15,
+  } = req.body;
   const id = uuidv4();
   const now = new Date().toISOString();
 
   db.prepare(
-    `INSERT INTO notes (id, pseudocode, mindmap, thinking_time, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?)`
-  ).run(id, pseudocode, mindmap ? JSON.stringify(mindmap) : null, thinkingTime, now, now);
+    `INSERT INTO notes (id, pseudocode, mindmap, problem_statement, thinking_time, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    id,
+    pseudocode,
+    mindmap ? JSON.stringify(mindmap) : null,
+    problemStatement,
+    thinkingTime,
+    now,
+    now
+  );
 
   res.status(201).json({
     id,
     pseudocode,
     mindmap,
+    problemStatement,
     thinkingTime,
     timestamp: now,
     updatedAt: now,
@@ -76,7 +96,7 @@ router.post('/', (req, res) => {
 });
 
 router.put('/:id', (req, res) => {
-  const { pseudocode, mindmap, thinkingTime } = req.body;
+  const { pseudocode, mindmap, problemStatement, thinkingTime } = req.body;
   const existing = db.prepare('SELECT id FROM notes WHERE id = ?').get(req.params.id);
 
   if (!existing) {
@@ -88,14 +108,16 @@ router.put('/:id', (req, res) => {
   const current = db.prepare('SELECT * FROM notes WHERE id = ?').get(req.params.id) as {
     pseudocode: string;
     mindmap: string | null;
+    problem_statement: string;
     thinking_time: number;
   };
 
   db.prepare(
-    `UPDATE notes SET pseudocode = ?, mindmap = ?, thinking_time = ?, updated_at = ? WHERE id = ?`
+    `UPDATE notes SET pseudocode = ?, mindmap = ?, problem_statement = ?, thinking_time = ?, updated_at = ? WHERE id = ?`
   ).run(
     pseudocode ?? current.pseudocode,
     mindmap !== undefined ? (mindmap ? JSON.stringify(mindmap) : null) : current.mindmap,
+    problemStatement ?? current.problem_statement,
     thinkingTime ?? current.thinking_time,
     now,
     req.params.id

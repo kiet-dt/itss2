@@ -7,6 +7,18 @@
 - `frontend/` — React + Vite
 - `backend/` — Express + SQLite
 
+## Cấu hình Gemini AI (bắt buộc cho AI Analysis)
+
+Tạo file `backend/.env`:
+
+```
+GEMINI_API_KEY=your_key_here
+```
+
+Lấy API key tại: https://aistudio.google.com/apikey
+
+AI Analysis **chỉ dùng Gemini** — không có fallback local. Thiếu key hoặc lỗi API sẽ báo lỗi rõ ràng.
+
 ## Chạy project
 
 ```bash
@@ -22,5 +34,5 @@ npm run dev
 
 - Viết mã giả và sơ đồ tư duy (có timer)
 - Lưu/xem/xóa ghi chú
-- Phân tích tư duy & kiểm tra xác thực nội dung
+- Phân tích tư duy bằng Gemini AI
 - Dashboard thống kê tiến trình

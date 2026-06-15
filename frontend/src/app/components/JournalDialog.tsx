@@ -5,7 +5,8 @@ interface Note {
   id: string;
   timestamp: Date;
   pseudocode: string;
-  mindmap: any;
+  mindmap: { nodes?: unknown[]; edges?: unknown[] } | null;
+  problemStatement?: string;
 }
 
 interface JournalDialogProps {
@@ -44,10 +45,12 @@ export function JournalDialog({ open, onOpenChange, notes, onViewNote, onDeleteN
 
           <div className="flex-1 overflow-y-auto p-6">
             {notes.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <p>Chưa có ghi chú nào</p>
-                <p className="mt-2">Bắt đầu làm việc để tạo ghi chú đầu tiên!</p>
+              <div className="text-center py-16 text-muted-foreground">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-muted flex items-center justify-center">
+                  <FileText className="w-8 h-8 opacity-50" />
+                </div>
+                <p className="font-medium">Chưa có ghi chú nào</p>
+                <p className="mt-2 text-sm">Bắt đầu một phiên suy nghĩ để tạo ghi chú đầu tiên!</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -75,12 +78,17 @@ export function JournalDialog({ open, onOpenChange, notes, onViewNote, onDeleteN
                         Xóa
                       </button>
                     </div>
-                    <div className="pl-6">
-                      <p className="text-foreground/80 line-clamp-3 whitespace-pre-wrap">
-                        {note.pseudocode || '(Không có mã giả)'}
+                    <div className="pl-2">
+                      {note.problemStatement && (
+                        <p className="font-medium text-foreground mb-2 line-clamp-2">
+                          🎯 {note.problemStatement}
+                        </p>
+                      )}
+                      <p className="text-foreground/80 line-clamp-3 whitespace-pre-wrap text-sm">
+                        {note.pseudocode || '(Chưa có mã giả)'}
                       </p>
                       {note.mindmap?.nodes && (
-                        <p className="mt-2 text-muted-foreground">
+                        <p className="mt-2 text-xs text-muted-foreground">
                           📊 Sơ đồ: {note.mindmap.nodes.length} nodes
                         </p>
                       )}

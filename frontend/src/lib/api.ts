@@ -1,3 +1,5 @@
+import type { AIAnalysisResult, MindmapFlowData } from '../types/session';
+
 const API_BASE = '/api';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -18,24 +20,9 @@ export interface Note {
   id: string;
   timestamp: string;
   pseudocode: string;
-  mindmap: unknown;
+  mindmap: MindmapFlowData | null;
+  problemStatement: string;
   thinkingTime?: number;
-}
-
-export interface ReflectionResult {
-  thinkingScore: number;
-  criteria: Record<string, number>;
-  feedback: string[];
-  improvements: string[];
-  timeline: { startedWriting: string; lastEdit: string; focusTime: string };
-}
-
-export interface AuthenticityResult {
-  originalScore: number;
-  aiGeneratedScore: number;
-  suspiciousSegments: Array<{ start: number; end: number; reason: string }>;
-  patterns: string[];
-  activity: { pasteTime: string; editCount: number; rewriteCount: number };
 }
 
 export interface DashboardStats {
@@ -43,37 +30,56 @@ export interface DashboardStats {
   authenticityScore: number;
   totalFocusTime: number;
   aiUsageCount: number;
-  weeklyProgress: Array<{ day: string; score: number }>;
+  problemsSolved: number;
+  rewriteCount: number;
+  editCount: number;
+  sessionCount: number;
+  weeklyThinking: Array<{ day: string; value: number }>;
+  weeklyAuthenticity: Array<{ day: string; value: number }>;
+  weeklyFocusTime: Array<{ day: string; value: number }>;
+  weeklySessions: Array<{ day: string; count: number }>;
+  topProblems: Array<{ name: string; count: number }>;
+  hasData: boolean;
 }
+
+export type { AIAnalysisResult };
 
 export const api = {
   getNotes: () => request<Note[]>('/notes'),
 
-  createNote: (data: { pseudocode: string; mindmap: unknown; thinkingTime: number }) =>
-    request<Note>('/notes', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
+  createNote: (data: {
+    pseudocode: string;
+    mindmap: MindmapFlowData | null;
+    problemStatement: string;
+    thinkingTime: number;
+  }) =>
+    request<Note>('/notes', { method: 'POST', body: JSON.stringify(data) }),
 
-  updateNote: (id: string, data: Partial<{ pseudocode: string; mindmap: unknown; thinkingTime: number }>) =>
-    request<{ id: string }>(`/notes/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
+  updateNote: (
+    id: string,
+    data: Partial<{
+      pseudocode: string;
+      mindmap: MindmapFlowData | null;
+      problemStatement: string;
+      thinkingTime: number;
+    }>
+  ) => request<{ id: string }>(`/notes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 
   deleteNote: (id: string) =>
     request<{ success: boolean }>(`/notes/${id}`, { method: 'DELETE' }),
 
-  analyzeReflection: (pseudocode: string, thinkingTime: number, noteId?: string) =>
-    request<ReflectionResult>('/analyze/reflection', {
+  analyzeWithAI: (data: {
+    problemStatement: string;
+    pseudocode: string;
+    mindmapData: MindmapFlowData | null;
+    thinkingMinutes: number;
+    editCount: number;
+    rewriteCount: number;
+    noteId?: string;
+  }) =>
+    request<AIAnalysisResult>('/analyze/reflection', {
       method: 'POST',
-      body: JSON.stringify({ pseudocode, thinkingTime, noteId }),
-    }),
-
-  analyzeAuthenticity: (content: string, noteId?: string) =>
-    request<AuthenticityResult>('/analyze/authenticity', {
-      method: 'POST',
-      body: JSON.stringify({ content, noteId }),
+      body: JSON.stringify(data),
     }),
 
   getDashboardStats: () => request<DashboardStats>('/stats/dashboard'),

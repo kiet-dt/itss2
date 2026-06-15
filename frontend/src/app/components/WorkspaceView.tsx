@@ -1,43 +1,100 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
-import { BookOpen, Network, BookMarked, Home, BarChart3 } from 'lucide-react';
+import { BookOpen, Network, Home, BarChart3, Sparkles, PanelLeft, PanelLeftClose } from 'lucide-react';
+import { toast } from 'sonner';
+import { ProblemStatementInput } from './ProblemStatementInput';
 import { PseudocodeEditor } from './PseudocodeEditor';
-import { MindMapEditor } from './MindMapEditor';
-import { AIReflectionDialog } from './AIReflectionDialog';
+import { MindmapCanvas } from './MindmapCanvas';
+import { AIAnalysisModal } from './AIAnalysisModal';
+import { JournalPanel } from './JournalPanel';
+import { buildDefaultMindmap } from '../../lib/mindmapTemplates';
+import type { MindmapFlowData, NoteData } from '../../types/session';
 
 interface WorkspaceViewProps {
   thinkingTime: number;
   noteId?: string;
-  onOpenJournal: () => void;
-  onSaveNote: (note: { pseudocode: string; mindmap: any }) => Promise<unknown>;
+  notes: NoteData[];
+  onOpenNote: (note: NoteData) => void;
+  onNewNote: () => void;
+  onDeleteNote: (id: string) => void;
+  onSaveNote: (note: {
+    pseudocode: string;
+    mindmap: MindmapFlowData | null;
+    problemStatement: string;
+  }) => Promise<unknown>;
   onBack: () => void;
   onOpenDashboard: () => void;
-  initialData?: { id?: string; pseudocode: string; mindmap: any } | null;
+  initialData?: {
+    id?: string;
+    pseudocode: string;
+    mindmap: MindmapFlowData | null;
+    problemStatement?: string;
+  } | null;
 }
 
-export function WorkspaceView({ thinkingTime, noteId, onOpenJournal, onSaveNote, onBack, onOpenDashboard, initialData }: WorkspaceViewProps) {
+export function WorkspaceView({
+  thinkingTime,
+  noteId,
+  notes,
+  onOpenNote,
+  onNewNote,
+  onDeleteNote,
+  onSaveNote,
+  onBack,
+  onOpenDashboard,
+  initialData,
+}: WorkspaceViewProps) {
+  const [problemStatement, setProblemStatement] = useState(initialData?.problemStatement || '');
   const [pseudocode, setPseudocode] = useState(initialData?.pseudocode || '');
-  const [mindmapData, setMindmapData] = useState<any>(initialData?.mindmap || null);
+  const [mindmapData, setMindmapData] = useState<MindmapFlowData | null>(
+    initialData?.mindmap ?? null
+  );
   const [timeLeft, setTimeLeft] = useState(thinkingTime * 60);
-  const [showReflection, setShowReflection] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [activeTab, setActiveTab] = useState('pseudocode');
+  const [editCount, setEditCount] = useState(0);
+  const [rewriteCount, setRewriteCount] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const savedRef = useRef({ pseudocode, mindmapData, problemStatement });
+  const timerRef = useRef<ReturnType<typeof setInterval>>();
+
+  const hasProblem = problemStatement.trim().length > 0;
+
+  const handleMindmapChange = useCallback((data: MindmapFlowData) => {
+    setMindmapData(data);
+  }, []);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          // Auto save when time is up
-          onSaveNote({ pseudocode, mindmap: mindmapData });
-          // Show AI Reflection Dialog
-          setShowReflection(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    if (!mindmapData && problemStatement.trim()) {
+      setMindmapData(buildDefaultMindmap(problemStatement));
+    }
+  }, []);
 
-    return () => clearInterval(timer);
-  }, [pseudocode, mindmapData, onSaveNote]);
+  const timerEndedRef = useRef(false);
+
+  const handleSave = useCallback(async () => {
+    if (!hasProblem) {
+      toast.error('Hãy mô tả bài toán trước khi lưu');
+      return null;
+    }
+    const result = await onSaveNote({ pseudocode, mindmap: mindmapData, problemStatement });
+    savedRef.current = { pseudocode, mindmapData, problemStatement };
+    return result;
+  }, [hasProblem, onSaveNote, pseudocode, mindmapData, problemStatement]);
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (timeLeft === 0 && hasProblem && !timerEndedRef.current) {
+      timerEndedRef.current = true;
+      handleSave().then(() => setShowAnalysis(true));
+    }
+  }, [timeLeft, hasProblem, handleSave]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -45,85 +102,123 @@ export function WorkspaceView({ thinkingTime, noteId, onOpenJournal, onSaveNote,
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleSave = async () => {
-    await onSaveNote({ pseudocode, mindmap: mindmapData });
-    setShowReflection(true);
-  };
+  const handleEditTrack = useCallback((edits: number, rewrites: number) => {
+    setEditCount(edits);
+    setRewriteCount(rewrites);
+  }, []);
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      {/* Header */}
-      <div className="h-16 border-b border-border flex items-center justify-between px-6 bg-card">
-        <div className="flex items-center gap-2">
+    <div className="h-[100dvh] flex flex-col bg-background overflow-hidden">
+      <header className="min-h-12 sm:min-h-14 border-b border-border flex items-center justify-between gap-2 px-3 sm:px-4 md:px-6 py-2 bg-card/80 backdrop-blur-sm shrink-0">
+        <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2 min-w-0">
           <button
-            onClick={onOpenJournal}
-            className="flex items-center gap-2 px-4 py-2 rounded-md hover:bg-accent transition-colors"
+            type="button"
+            onClick={() => setSidebarOpen((o) => !o)}
+            className="lg:hidden flex items-center gap-1 px-2 py-2 rounded-lg hover:bg-accent text-sm text-muted-foreground transition-colors shrink-0"
+            aria-expanded={sidebarOpen}
+            aria-label={sidebarOpen ? 'Ẩn ghi chú' : 'Hiện ghi chú'}
           >
-            <BookMarked className="w-5 h-5" />
-            Nhật ký
+            {sidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
           </button>
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 px-4 py-2 rounded-md hover:bg-accent transition-colors text-muted-foreground"
-          >
-            <Home className="w-4 h-4" />
-            Trang chủ
+          <button onClick={onBack} className="flex items-center gap-1 px-2 sm:px-3 py-2 rounded-lg hover:bg-accent text-sm text-muted-foreground transition-colors shrink-0">
+            <Home className="w-4 h-4" /> <span className="hidden sm:inline">Trang chủ</span>
           </button>
-          <button
-            onClick={onOpenDashboard}
-            className="flex items-center gap-2 px-4 py-2 rounded-md hover:bg-accent transition-colors text-muted-foreground"
-          >
-            <BarChart3 className="w-4 h-4" />
-            Dashboard
+          <button onClick={onOpenDashboard} className="flex items-center gap-1 px-2 sm:px-3 py-2 rounded-lg hover:bg-accent text-sm text-muted-foreground transition-colors shrink-0">
+            <BarChart3 className="w-4 h-4" /> <span className="hidden md:inline">Dashboard</span>
           </button>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className={`px-4 py-2 rounded-md ${timeLeft < 60 ? 'bg-destructive/10 text-destructive' : 'bg-muted'}`}>
-            ⏱️ {formatTime(timeLeft)}
+        <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 shrink-0">
+          <div className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-mono ${timeLeft < 60 ? 'bg-destructive/10 text-destructive' : 'bg-muted'}`}>
+            ⏱ {formatTime(timeLeft)}
           </div>
           <button
-            onClick={handleSave}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            onClick={() => handleSave().then((r) => r && toast.success('Đã lưu'))}
+            disabled={!hasProblem}
+            className="px-2.5 sm:px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed text-sm transition-colors"
           >
-            Lưu ghi chú
+            Lưu
           </button>
+          <button
+            onClick={() => hasProblem ? setShowAnalysis(true) : toast.error('Hãy mô tả bài toán trước')}
+            disabled={!hasProblem}
+            className="px-2.5 sm:px-3 py-2 border border-primary text-primary rounded-lg hover:bg-primary/10 disabled:opacity-40 disabled:cursor-not-allowed text-sm flex items-center gap-1.5 transition-colors"
+          >
+            <Sparkles className="w-4 h-4" /> <span className="hidden sm:inline">Phân tích</span>
+          </button>
+        </div>
+      </header>
+
+      <div className="flex-1 overflow-hidden flex flex-col lg:flex-row min-h-0">
+        <aside
+          className={`lg:w-80 xl:w-96 border-b lg:border-b-0 lg:border-r border-border shrink-0 bg-muted/10 flex flex-col min-h-0 transition-all duration-200 lg:flex lg:max-h-none lg:h-auto lg:p-4 lg:gap-4 ${
+            sidebarOpen
+              ? 'flex max-h-[min(50vh,28rem)] p-4 gap-4'
+              : 'hidden lg:flex'
+          }`}
+        >
+          <ProblemStatementInput value={problemStatement} onChange={setProblemStatement} compact />
+          <JournalPanel
+            notes={notes}
+            activeNoteId={noteId}
+            onOpenNote={onOpenNote}
+            onNewNote={onNewNote}
+            onDeleteNote={onDeleteNote}
+            className="flex-1 min-h-[120px]"
+          />
+        </aside>
+
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+          <Tabs.Root value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+            <Tabs.List className="flex border-b border-border bg-card/50 px-1 sm:px-2 shrink-0">
+              <Tabs.Trigger
+                value="pseudocode"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary transition-all hover:bg-accent/50 rounded-t-lg"
+              >
+                <BookOpen className="w-4 h-4 shrink-0" /> <span className="truncate">Mã giả</span>
+              </Tabs.Trigger>
+              <Tabs.Trigger
+                value="mindmap"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 sm:py-3 text-sm data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary transition-all hover:bg-accent/50 rounded-t-lg"
+              >
+                <Network className="w-4 h-4 shrink-0" /> <span className="truncate">Sơ đồ tư duy</span>
+              </Tabs.Trigger>
+            </Tabs.List>
+
+            <Tabs.Content value="pseudocode" className="flex-1 min-h-0 overflow-hidden outline-none data-[state=inactive]:hidden flex flex-col">
+              <div className="p-3 sm:p-4 border-b border-border lg:hidden shrink-0">
+                <ProblemStatementInput value={problemStatement} onChange={setProblemStatement} compact />
+              </div>
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <PseudocodeEditor value={pseudocode} onChange={setPseudocode} editCount={editCount} onEditTrack={handleEditTrack} />
+              </div>
+            </Tabs.Content>
+            <Tabs.Content value="mindmap" className="flex-1 min-h-0 overflow-hidden outline-none data-[state=inactive]:hidden flex flex-col">
+              <div className="p-3 sm:p-4 border-b border-border lg:hidden shrink-0">
+                <ProblemStatementInput value={problemStatement} onChange={setProblemStatement} compact />
+              </div>
+              <div className="flex-1 min-h-0 h-full">
+                <MindmapCanvas
+                  problemStatement={problemStatement}
+                  data={mindmapData}
+                  onChange={handleMindmapChange}
+                  isActive={activeTab === 'mindmap'}
+                />
+              </div>
+            </Tabs.Content>
+          </Tabs.Root>
         </div>
       </div>
 
-      {/* Tabs */}
-      <Tabs.Root defaultValue="pseudocode" className="flex-1 flex flex-col">
-        <Tabs.List className="flex border-b border-border bg-muted/30">
-          <Tabs.Trigger
-            value="pseudocode"
-            className="flex items-center gap-2 px-6 py-3 hover:bg-accent/50 data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary transition-colors"
-          >
-            <BookOpen className="w-4 h-4" />
-            Mã giả
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            value="mindmap"
-            className="flex items-center gap-2 px-6 py-3 hover:bg-accent/50 data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary transition-colors"
-          >
-            <Network className="w-4 h-4" />
-            Sơ đồ tư duy
-          </Tabs.Trigger>
-        </Tabs.List>
-
-        <Tabs.Content value="pseudocode" className="flex-1 overflow-hidden">
-          <PseudocodeEditor value={pseudocode} onChange={setPseudocode} noteId={noteId ?? initialData?.id} />
-        </Tabs.Content>
-
-        <Tabs.Content value="mindmap" className="flex-1 overflow-hidden">
-          <MindMapEditor data={mindmapData} onChange={setMindmapData} />
-        </Tabs.Content>
-      </Tabs.Root>
-
-      <AIReflectionDialog
-        open={showReflection}
-        onOpenChange={setShowReflection}
+      <AIAnalysisModal
+        open={showAnalysis}
+        onOpenChange={setShowAnalysis}
+        problemStatement={problemStatement}
         pseudocode={pseudocode}
-        thinkingTime={thinkingTime}
+        mindmapData={mindmapData}
+        thinkingMinutes={thinkingTime}
+        editCount={editCount}
+        rewriteCount={rewriteCount}
         noteId={noteId ?? initialData?.id}
       />
     </div>

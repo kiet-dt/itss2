@@ -72,7 +72,7 @@ export function AIReflectionDialog({ open, onOpenChange, pseudocode, thinkingTim
               >
                 <Brain className="w-16 h-16 text-primary" />
               </motion.div>
-              <h3 className="mb-2">AI đang phân tích tư duy của bạn...</h3>
+              <h3 className="mb-2">Đang phân tích tư duy của bạn...</h3>
               <p className="text-muted-foreground">Đợi một chút nhé</p>
               <div className="w-64 h-1 bg-muted rounded-full mt-6 overflow-hidden">
                 <motion.div
