@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://REPLACE_WITH_YOUR_RAILWAY_DOMAIN/api/:path*"
+      "destination": "https://itss2-production-4c43.up.railway.app/api/:path*"
     }
   ]
 }
