@@ -849,7 +849,7 @@ function MindmapCanvasInner({ problemStatement, data, onChange, isActive = true 
             position="bottom-center"
             className="nodrag nopan nowheel hidden md:block max-w-[min(100%,42rem)] text-xs text-muted-foreground bg-card/90 px-3 py-1.5 rounded-lg border border-border shadow-sm text-center"
           >
-            Kéo nền để di chuyển • Ctrl+C/V copy/dán • Click đường + Xóa hoặc chuột phải
+            Di chuột vào node, kéo từ điểm nối màu xanh sang node đích để tạo liên kết
           </Panel>
         </ReactFlow>
 
