@@ -17,7 +17,6 @@ export function ProblemStatementInput({ value, onChange, compact }: ProblemState
   return (
     <div className={`rounded-xl border border-border/60 bg-card/80 ${compact ? 'p-4' : 'p-5'} shadow-sm`}>
       <label className="flex items-center gap-2 mb-3 font-medium text-sm">
-        <span className="text-lg">🎯</span>
         <Target className="w-4 h-4 text-primary" />
         Vấn đề cần giải quyết
       </label>
