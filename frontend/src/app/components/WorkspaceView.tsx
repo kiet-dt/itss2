@@ -7,6 +7,7 @@ import { PseudocodeEditor } from './PseudocodeEditor';
 import { MindmapCanvas } from './MindmapCanvas';
 import { AIAnalysisModal } from './AIAnalysisModal';
 import { JournalPanel } from './JournalPanel';
+import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
 import { buildDefaultMindmap } from '../../lib/mindmapTemplates';
 import type { MindmapFlowData, NoteData } from '../../types/session';
 
@@ -136,6 +137,14 @@ export function WorkspaceView({
     setRewriteCount(rewrites);
   }, []);
 
+  const handleOpenNote = useCallback(
+    (note: NoteData) => {
+      onOpenNote(note);
+      setSidebarOpen(false);
+    },
+    [onOpenNote]
+  );
+
   return (
     <div className="h-[100dvh] flex flex-col bg-background overflow-hidden">
       <header className="min-h-12 sm:min-h-14 border-b border-border flex items-center justify-between gap-2 px-3 sm:px-4 md:px-6 py-2 bg-card/80 backdrop-blur-sm shrink-0">
@@ -192,23 +201,36 @@ export function WorkspaceView({
       </header>
 
       <div className="flex-1 overflow-hidden flex flex-col lg:flex-row min-h-0">
-        <aside
-          className={`lg:w-80 xl:w-96 border-b lg:border-b-0 lg:border-r border-border shrink-0 bg-muted/10 flex flex-col min-h-0 transition-all duration-200 lg:flex lg:max-h-none lg:h-auto lg:p-4 lg:gap-4 ${
-            sidebarOpen
-              ? 'flex max-h-[min(50vh,28rem)] p-4 gap-4'
-              : 'hidden lg:flex'
-          }`}
-        >
+        {/* Desktop sidebar */}
+        <aside className="hidden lg:flex lg:w-80 xl:w-96 lg:border-r border-border shrink-0 bg-muted/10 flex-col min-h-0 p-4 gap-4">
           <ProblemStatementInput value={problemStatement} onChange={setProblemStatement} compact />
           <JournalPanel
             notes={notes}
             activeNoteId={noteId}
-            onOpenNote={onOpenNote}
+            onOpenNote={handleOpenNote}
             onNewNote={onNewNote}
             onDeleteNote={onDeleteNote}
             className="flex-1 min-h-[120px]"
           />
         </aside>
+
+        {/* Mobile drawer — ghi chú kiểu ChatGPT */}
+        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+          <SheetContent
+            side="left"
+            className="lg:hidden w-[min(85vw,20rem)] p-4 pt-12 flex flex-col min-h-0 gap-0"
+          >
+            <SheetTitle className="sr-only">Ghi chú đã lưu</SheetTitle>
+            <JournalPanel
+              notes={notes}
+              activeNoteId={noteId}
+              onOpenNote={handleOpenNote}
+              onNewNote={onNewNote}
+              onDeleteNote={onDeleteNote}
+              className="flex-1 min-h-0"
+            />
+          </SheetContent>
+        </Sheet>
 
         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
           <Tabs.Root value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
