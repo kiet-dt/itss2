@@ -12,4 +12,12 @@ export const GOOGLE_THEME_COLORS: readonly (readonly string[])[] = [
 
 export const GOOGLE_THEME_FLAT: string[] = GOOGLE_THEME_COLORS.flat();
 
+/** Bảng màu mobile gọn hơn (8 cột × 4 hàng) để không bị lệch layout. */
+export const MOBILE_THEME_COLORS: readonly (readonly string[])[] = [
+  ['#000000', '#434343', '#666666', '#999999', '#cccccc', '#d9d9d9', '#efefef', '#ffffff'],
+  ['#ff0000', '#ff9900', '#ffff00', '#00ff00', '#00ffff', '#4a86e8', '#0000ff', '#9900ff'],
+  ['#dd7e6b', '#ea9999', '#f9cb9c', '#ffe599', '#b6d7a8', '#a2c4c9', '#6d9eeb', '#8e7cc3'],
+  ['#85200c', '#990000', '#b45f06', '#bf9000', '#38761d', '#134f5c', '#1155cc', '#351c75'],
+] as const;
+
 export const DEFAULT_NODE_COLOR = '#4a86e8';

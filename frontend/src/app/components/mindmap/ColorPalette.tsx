@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Sheet, SheetContent, SheetTitle } from '../ui/sheet';
 import { Input } from '../ui/input';
-import { GOOGLE_THEME_COLORS, GOOGLE_THEME_FLAT } from '../../../lib/mindmapPresetColors';
+import { GOOGLE_THEME_COLORS, GOOGLE_THEME_FLAT, MOBILE_THEME_COLORS } from '../../../lib/mindmapPresetColors';
 import {
   addCustomColor,
   isValidHex,
@@ -157,11 +157,12 @@ function ColorPaletteBody({
   const activeNorm = normalizeHex(selectedColor);
   const gridCols = touchFriendly ? 'grid-cols-8' : 'grid-cols-10';
   const gridGap = touchFriendly ? 'gap-1.5' : 'gap-[3px]';
+  const themeColors = touchFriendly ? MOBILE_THEME_COLORS : GOOGLE_THEME_COLORS;
 
   return (
     <>
       <div className="space-y-1">
-        {GOOGLE_THEME_COLORS.map((row, rowIdx) => (
+        {themeColors.map((row, rowIdx) => (
           <div key={rowIdx} className={`grid ${gridCols} ${gridGap}`}>
             {row.map((c) => (
               <ColorSwatch
