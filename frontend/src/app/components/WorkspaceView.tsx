@@ -10,6 +10,8 @@ import { JournalPanel } from './JournalPanel';
 import { buildDefaultMindmap } from '../../lib/mindmapTemplates';
 import type { MindmapFlowData, NoteData } from '../../types/session';
 
+const TAB_LEAVE_LIMIT = 3;
+
 interface WorkspaceViewProps {
   thinkingTime: number;
   noteId?: string;
@@ -55,8 +57,11 @@ export function WorkspaceView({
   const [editCount, setEditCount] = useState(0);
   const [rewriteCount, setRewriteCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [tabLeaveCount, setTabLeaveCount] = useState(0);
   const savedRef = useRef({ pseudocode, mindmapData, problemStatement });
   const timerRef = useRef<ReturnType<typeof setInterval>>();
+  const timeLeftRef = useRef(timeLeft);
+  timeLeftRef.current = timeLeft;
 
   const hasProblem = problemStatement.trim().length > 0;
 
@@ -87,6 +92,30 @@ export function WorkspaceView({
       setTimeLeft((prev) => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
     return () => clearInterval(timerRef.current);
+  }, []);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (!document.hidden) return;
+      if (timeLeftRef.current <= 0) return;
+
+      setTabLeaveCount((prev) => {
+        const next = prev + 1;
+        if (next > TAB_LEAVE_LIMIT) {
+          toast.warning(
+            `Bạn đã rời tab ${next} lần. Hãy tập trung vào phiên suy nghĩ!`
+          );
+        } else if (next === TAB_LEAVE_LIMIT) {
+          toast.warning(
+            `Bạn đã rời tab ${TAB_LEAVE_LIMIT} lần. Hãy tập trung vào phiên suy nghĩ!`
+          );
+        }
+        return next;
+      });
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
   }, []);
 
   useEffect(() => {
@@ -129,6 +158,19 @@ export function WorkspaceView({
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 shrink-0">
+          <div
+            className={`flex px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm shrink-0 ${
+              tabLeaveCount > TAB_LEAVE_LIMIT
+                ? 'bg-destructive/10 text-destructive'
+                : tabLeaveCount === TAB_LEAVE_LIMIT
+                  ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                  : 'bg-muted text-muted-foreground'
+            }`}
+            title="Số lần chuyển sang tab/cửa sổ khác trong khi timer đang chạy"
+          >
+            <span className="hidden md:inline">{`Số lần rời tab: ${tabLeaveCount}`}</span>
+            <span className="md:hidden">{`Rời tab: ${tabLeaveCount}`}</span>
+          </div>
           <div className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-mono ${timeLeft < 60 ? 'bg-destructive/10 text-destructive' : 'bg-muted'}`}>
             ⏱ {formatTime(timeLeft)}
           </div>
