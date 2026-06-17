@@ -45,7 +45,7 @@ export function Dashboard({ onStart }: DashboardProps) {
 
           <div className="relative p-8 md:p-10">
             <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white mb-4 shadow-lg shadow-primary/25">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[#030213] to-blue-600 dark:from-indigo-500 dark:to-violet-600 text-white mb-4 shadow-lg shadow-blue-600/25 dark:shadow-violet-500/30">
                 <Brain className="w-7 h-7" />
               </div>
               <h1 className="text-2xl font-semibold mb-2">Dành vài phút suy nghĩ trước khi bắt đầu</h1>
@@ -98,7 +98,7 @@ export function Dashboard({ onStart }: DashboardProps) {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleStart}
-                className="w-full py-3.5 px-4 bg-gradient-to-r from-primary to-blue-600 text-white rounded-xl hover:shadow-lg hover:shadow-primary/25 transition-shadow flex items-center justify-center gap-2 font-medium"
+                className="w-full py-3.5 px-4 bg-gradient-to-r from-[#030213] to-blue-600 dark:from-indigo-600 dark:to-violet-700 text-white rounded-xl hover:shadow-lg hover:shadow-blue-600/25 dark:hover:shadow-violet-500/30 transition-shadow flex items-center justify-center gap-2 font-medium"
               >
                 <Play className="w-5 h-5" />
                 Bắt đầu phiên suy nghĩ
