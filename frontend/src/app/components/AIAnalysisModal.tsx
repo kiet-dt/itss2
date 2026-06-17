@@ -5,8 +5,9 @@ import { motion } from 'motion/react';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer,
 } from 'recharts';
-import { api, type AIAnalysisResult } from '../../lib/api';
-import type { MindmapFlowData } from '../../types/session';
+import { api } from '../../lib/api';
+import { recordAnalysisSession } from '../../lib/localStats';
+import type { AIAnalysisResult, MindmapFlowData } from '../../types/session';
 
 interface AIAnalysisModalProps {
   open: boolean;
@@ -49,9 +50,16 @@ export function AIAnalysisModal({
         thinkingMinutes,
         editCount,
         rewriteCount,
-        noteId,
       })
       .then((data) => {
+        recordAnalysisSession({
+          noteId,
+          problemStatement,
+          thinkingMinutes,
+          editCount,
+          rewriteCount,
+          result: data,
+        });
         setResult(data);
         setAnalyzing(false);
       })

@@ -8,7 +8,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Legend,
 } from 'recharts';
-import { api, type DashboardStats } from '../../lib/api';
+import type { DashboardStats } from '../../lib/api';
+import { getDashboardStats } from '../../lib/localStats';
 
 interface DashboardStatsViewProps {
   onBack?: () => void;
@@ -58,7 +59,8 @@ export function DashboardStats({ onBack }: DashboardStatsViewProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.getDashboardStats().then(setStats).finally(() => setLoading(false));
+    setStats(getDashboardStats());
+    setLoading(false);
   }, []);
 
   if (loading) {

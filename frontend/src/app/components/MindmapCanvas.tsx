@@ -1,4 +1,4 @@
-import {
+import React, {
   useCallback,
   useEffect,
   useMemo,
@@ -39,6 +39,9 @@ import { DEFAULT_NODE_COLOR, normalizeHex } from '../../lib/mindmapPalette';
 import { applySmartHandlesToEdges, getSmartHandles } from '../../lib/mindmapSmartEdges';
 import type { MindmapFlowData } from '../../types/session';
 import { useAppDarkMode } from '../../hooks/useAppDarkMode';
+
+type FlowDragEvent = MouseEvent | TouchEvent;
+type FlowPointerEvent = MouseEvent | ReactMouseEvent;
 
 interface MindmapCanvasProps {
   problemStatement: string;
@@ -151,7 +154,7 @@ function MindmapCanvasInner({ problemStatement, data, onChange, isActive = true 
   const pointerFlowRef = useRef<{ x: number; y: number } | null>(null);
 
   const trackPointer = useCallback(
-    (e: ReactMouseEvent) => {
+    (e: FlowPointerEvent) => {
       pointerFlowRef.current = screenToFlowPosition({ x: e.clientX, y: e.clientY });
     },
     [screenToFlowPosition]
@@ -238,6 +241,7 @@ function MindmapCanvasInner({ problemStatement, data, onChange, isActive = true 
 
   const selectedNodesRef = useRef(selectedNodes);
   selectedNodesRef.current = selectedNodes;
+  const prevSelectionRef = useRef<string[]>([]);
   const colorApplyRafRef = useRef<number | null>(null);
   const pendingNodeColorRef = useRef<string | null>(null);
   const colorDraggingRef = useRef(false);
@@ -312,14 +316,14 @@ function MindmapCanvasInner({ problemStatement, data, onChange, isActive = true 
   );
 
   const onNodeDrag = useCallback(
-    (_: ReactMouseEvent, _node: Node, draggedNodes: Node[]) => {
+    (_: FlowDragEvent, _node: Node, draggedNodes: Node[]) => {
       syncHandlesFromDrag(draggedNodes);
     },
     [syncHandlesFromDrag]
   );
 
   const onNodeDragStop = useCallback(
-    (_: ReactMouseEvent, _node: Node, draggedNodes: Node[]) => {
+    (_: FlowDragEvent, _node: Node, draggedNodes: Node[]) => {
       const movedMap = new Map(draggedNodes.map((n) => [n.id, n]));
       const merged = getNodes().map((n) => {
         const moved = movedMap.get(n.id);
@@ -589,9 +593,12 @@ function MindmapCanvasInner({ problemStatement, data, onChange, isActive = true 
   const previewNodeColor = useCallback(
     (color: string) => {
       colorDraggingRef.current = true;
+      const normalized = normalizeHex(color);
+      setSelectedColor(normalized);
+
       if (!selectedNodesRef.current.length) return;
 
-      pendingNodeColorRef.current = color;
+      pendingNodeColorRef.current = normalized;
       if (colorApplyRafRef.current != null) return;
 
       colorApplyRafRef.current = requestAnimationFrame(() => {
@@ -613,11 +620,12 @@ function MindmapCanvasInner({ problemStatement, data, onChange, isActive = true 
         colorApplyRafRef.current = null;
       }
 
-      setSelectedColor(color);
+      const normalized = normalizeHex(color);
+      setSelectedColor(normalized);
       if (!selectedNodesRef.current.length) return;
 
       setNodes((nds) => {
-        const next = applyColorToNodes(nds, color, selectedNodesRef.current);
+        const next = applyColorToNodes(nds, normalized, selectedNodesRef.current);
         if (next !== nds) {
           nodesRef.current = next;
           onChangeRef.current(flowToData(next, edgesRef.current));
@@ -657,7 +665,7 @@ function MindmapCanvasInner({ problemStatement, data, onChange, isActive = true 
   const exportPng = useCallback(async () => {
     const wrapper = flowWrapperRef.current;
     const el = wrapper?.querySelector('.react-flow') as HTMLElement | null;
-    if (!el || nodes.length === 0) {
+    if (!wrapper || !el || nodes.length === 0) {
       toast.info('Không có node để xuất');
       return;
     }
@@ -724,26 +732,59 @@ function MindmapCanvasInner({ problemStatement, data, onChange, isActive = true 
     }
   }, [nodes, selectedNodes, activeEdgeId, getNodesBounds, getViewport, setViewport, setNodes]);
 
-  const onPaneContextMenu = useCallback((e: ReactMouseEvent) => {
+  const onPaneContextMenu = useCallback((e: FlowPointerEvent) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
 
-  const onNodeContextMenu = useCallback((e: ReactMouseEvent, node: Node) => {
+  const onNodeContextMenu = useCallback((e: FlowPointerEvent, node: Node) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY, nodeId: node.id });
   }, []);
 
-  const onEdgeContextMenu = useCallback((e: ReactMouseEvent, edge: Edge) => {
+  const onEdgeContextMenu = useCallback((e: FlowPointerEvent, edge: Edge) => {
     e.preventDefault();
     setActiveEdgeId(edge.id);
     setContextMenu({ x: e.clientX, y: e.clientY, edgeId: edge.id });
   }, []);
 
+  const handlePaneClick = useCallback(
+    (e: FlowPointerEvent) => {
+      setContextMenu(null);
+      setActiveEdgeId(null);
+      if (e.detail !== 2) return;
+
+      const pos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      const id = `node-${Date.now()}`;
+      const newNode: Node = {
+        id,
+        type: 'editable',
+        position: pos,
+        data: { label: 'Node mới', color: selectedColor, onLabelChange },
+      };
+      setNodes((nds) => {
+        const next = [...nds, newNode];
+        pushHistory(next, edges);
+        return next;
+      });
+      toast.success('Đã thêm node');
+    },
+    [screenToFlowPosition, selectedColor, onLabelChange, setNodes, pushHistory, edges]
+  );
+
+  const toolbarColor = useMemo(() => {
+    if (selectedNodes.length > 0) {
+      const node = nodes.find((n) => n.id === selectedNodes[0]);
+      const c = (node?.data as { color?: string })?.color;
+      if (c) return normalizeHex(c);
+    }
+    return selectedColor;
+  }, [selectedNodes, nodes, selectedColor]);
+
   return (
     <div className="mindmap-editor">
       <MindmapToolbar
-        selectedColor={selectedColor}
+        selectedColor={toolbarColor}
         onAddNode={addNode}
         onDelete={deleteSelected}
         onUndo={undo}
@@ -777,8 +818,12 @@ function MindmapCanvasInner({ problemStatement, data, onChange, isActive = true 
           onSelectionDrag={onSelectionDrag}
           onSelectionDragStop={onSelectionDragStop}
           onSelectionChange={({ nodes: sel }) => {
-            setSelectedNodes(sel.map((n) => n.id));
-            if (sel.length > 0) {
+            const ids = sel.map((n) => n.id);
+            setSelectedNodes(ids);
+            const idsChanged = ids.join(',') !== prevSelectionRef.current.join(',');
+            prevSelectionRef.current = ids;
+            if (colorDraggingRef.current) return;
+            if (idsChanged && sel.length > 0) {
               const c = (sel[0].data as { color?: string }).color;
               setSelectedColor(c ? normalizeHex(c) : DEFAULT_NODE_COLOR);
             }
@@ -793,10 +838,7 @@ function MindmapCanvasInner({ problemStatement, data, onChange, isActive = true 
             setActiveEdgeId(edge.id);
             setSelectedNodes([]);
           }}
-          onPaneClick={() => {
-            setContextMenu(null);
-            setActiveEdgeId(null);
-          }}
+          onPaneClick={handlePaneClick}
           nodeTypes={mindmapNodeTypes}
           defaultEdgeOptions={mindmapEdgeDefaults}
           elevateEdgesOnSelect
@@ -804,6 +846,7 @@ function MindmapCanvasInner({ problemStatement, data, onChange, isActive = true 
           panOnDrag
           zoomOnScroll
           zoomOnPinch
+          zoomOnDoubleClick={false}
           selectionOnDrag={false}
           edgesFocusable
           elementsSelectable
@@ -822,22 +865,6 @@ function MindmapCanvasInner({ problemStatement, data, onChange, isActive = true 
           fitViewOptions={{ padding: 0.25 }}
           colorMode={isDark ? 'dark' : 'light'}
           className="bg-background"
-          onPaneDoubleClick={(e) => {
-            const pos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-            const id = `node-${Date.now()}`;
-            const newNode: Node = {
-              id,
-              type: 'editable',
-              position: pos,
-              data: { label: 'Node mới', color: selectedColor, onLabelChange },
-            };
-            setNodes((nds) => {
-              const next = [...nds, newNode];
-              pushHistory(next, edges);
-              return next;
-            });
-            toast.success('Đã thêm node');
-          }}
         >
           <Background gap={20} size={1} className="!bg-muted/20" />
           <Controls className="mindmap-controls" />

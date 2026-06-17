@@ -1,32 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Brain, Shield, Clock, Sparkles, TrendingUp, Calendar, ArrowLeft } from 'lucide-react';
 import { motion } from 'motion/react';
-import { api, type DashboardStats } from '../../lib/api';
+import type { DashboardStats } from '../../lib/api';
+import { getDashboardStats } from '../../lib/localStats';
 
 interface DashboardOverviewProps {
   onBack?: () => void;
 }
 
 export function DashboardOverview({ onBack }: DashboardOverviewProps) {
-  const [mockStats, setMockStats] = useState<DashboardStats>({
-    thinkingScore: 78,
-    authenticityScore: 85,
-    totalFocusTime: 245,
-    aiUsageCount: 12,
-    weeklyProgress: [
-      { day: 'T2', score: 65 },
-      { day: 'T3', score: 72 },
-      { day: 'T4', score: 68 },
-      { day: 'T5', score: 75 },
-      { day: 'T6', score: 80 },
-      { day: 'T7', score: 78 },
-      { day: 'CN', score: 82 },
-    ],
-  });
-
-  useEffect(() => {
-    api.getDashboardStats().then(setMockStats).catch(() => {});
-  }, []);
+  const [mockStats, setMockStats] = useState<DashboardStats>(() => getDashboardStats());
 
   const StatCard = ({
     icon: Icon,

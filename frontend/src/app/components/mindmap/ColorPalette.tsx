@@ -53,59 +53,105 @@ export function ColorPalette({ selectedColor, onPreviewColor, onCommitColor }: C
   const [customColors, setCustomColors] = useState(loadCustomColors);
   const [hexInput, setHexInput] = useState(selectedColor);
   const addInputRef = useRef<HTMLInputElement>(null);
+  const nativePickerActiveRef = useRef(false);
 
   useEffect(() => {
     setHexInput(selectedColor);
   }, [selectedColor]);
 
-  const applyColor = useCallback(
-    (color: string) => {
-      const normalized = normalizeHex(color);
-      setHexInput(normalized);
-      onCommitColor(normalized);
-      setOpen(false);
-    },
-    [onCommitColor]
-  );
+  const endNativePicker = useCallback(() => {
+    nativePickerActiveRef.current = false;
+  }, []);
 
-  const addCustom = useCallback(
-    (color: string) => {
+  const handleOpenChange = useCallback((next: boolean) => {
+    if (!next && nativePickerActiveRef.current) return;
+    if (!next) endNativePicker();
+    setOpen(next);
+  }, [endNativePicker]);
+
+  const commitColor = useCallback(
+    (color: string, options?: { close?: boolean; saveCustom?: boolean }) => {
       if (!isValidHex(color)) {
         toast.error('Mã màu không hợp lệ (ví dụ: #6366f1)');
         return;
       }
       const normalized = normalizeHex(color);
-      setCustomColors((prev) => addCustomColor(normalized, prev));
-      applyColor(normalized);
+      setHexInput(normalized);
+      if (options?.saveCustom) {
+        setCustomColors((prev) => addCustomColor(normalized, prev));
+      }
+      onCommitColor(normalized);
+      if (options?.close) {
+        endNativePicker();
+        setOpen(false);
+      }
     },
-    [applyColor]
+    [onCommitColor, endNativePicker]
+  );
+
+  const applyColor = useCallback(
+    (color: string) => commitColor(color, { close: true }),
+    [commitColor]
+  );
+
+  const addCustom = useCallback(
+    (color: string) => commitColor(color, { close: true, saveCustom: true }),
+    [commitColor]
+  );
+
+  const finishNativePickerColor = useCallback(
+    (color: string) => {
+      commitColor(color, { close: false, saveCustom: true });
+      endNativePicker();
+    },
+    [commitColor, endNativePicker]
   );
 
   const openCustomPicker = useCallback(() => {
+    nativePickerActiveRef.current = true;
     if (addInputRef.current) {
       addInputRef.current.value = selectedColor;
     }
     addInputRef.current?.click();
   }, [selectedColor]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const onWindowFocus = () => {
+      window.setTimeout(() => {
+        if (!nativePickerActiveRef.current) return;
+        const input = addInputRef.current;
+        if (input && document.activeElement === input) return;
+        endNativePicker();
+      }, 250);
+    };
+
+    window.addEventListener('focus', onWindowFocus);
+    return () => window.removeEventListener('focus', onWindowFocus);
+  }, [open, endNativePicker]);
+
   const pickFromScreen = useCallback(async () => {
     if (!('EyeDropper' in window)) {
       toast.info('Trình duyệt không hỗ trợ pipette — dùng nút + thay thế');
       return;
     }
+    nativePickerActiveRef.current = true;
     try {
       const dropper = new (window as Window & { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper();
       const { sRGBHex } = await dropper.open();
       addCustom(sRGBHex);
     } catch {
       /* user cancelled */
+    } finally {
+      endNativePicker();
     }
-  }, [addCustom]);
+  }, [addCustom, endNativePicker]);
 
   const activeNorm = normalizeHex(selectedColor);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -125,6 +171,15 @@ export function ColorPalette({ selectedColor, onPreviewColor, onCommitColor }: C
         className="w-[232px] p-3"
         align="start"
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onInteractOutside={(e) => {
+          if (nativePickerActiveRef.current) e.preventDefault();
+        }}
+        onFocusOutside={(e) => {
+          if (nativePickerActiveRef.current) e.preventDefault();
+        }}
+        onPointerDownOutside={(e) => {
+          if (nativePickerActiveRef.current) e.preventDefault();
+        }}
       >
         <div className="space-y-1">
           {GOOGLE_THEME_COLORS.map((row, rowIdx) => (
@@ -214,8 +269,13 @@ export function ColorPalette({ selectedColor, onPreviewColor, onCommitColor }: C
           type="color"
           className="sr-only"
           defaultValue={selectedColor}
-          onInput={(e) => onPreviewColor(e.currentTarget.value)}
-          onChange={(e) => addCustom(e.currentTarget.value)}
+          onInput={(e) => {
+            const value = e.currentTarget.value;
+            setHexInput(value);
+            onPreviewColor(value);
+          }}
+          onChange={(e) => finishNativePickerColor(e.currentTarget.value)}
+          onCancel={endNativePicker}
         />
       </PopoverContent>
     </Popover>

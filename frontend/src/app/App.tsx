@@ -4,8 +4,14 @@ import { WorkspaceView } from './components/WorkspaceView';
 import { NoteDetailView } from './components/NoteDetailView';
 import { DashboardStats } from './components/DashboardStats';
 import { ThemeToggle } from './components/ThemeToggle';
-import { api, type Note as ApiNote } from '../lib/api';
-import type { MindmapFlowData, NoteData } from '../types/session';
+import {
+  getAllNotes,
+  createNote,
+  updateNote,
+  deleteNote as deleteStoredNote,
+  type StoredNote,
+} from '../lib/localNotes';
+import type { MindmapFlowData } from '../types/session';
 import { toast } from 'sonner';
 
 interface Note {
@@ -19,7 +25,7 @@ interface Note {
 
 type ViewMode = 'dashboard' | 'workspace' | 'overview' | 'detail';
 
-function toLocalNote(n: ApiNote): Note {
+function toLocalNote(n: StoredNote): Note {
   return {
     id: n.id,
     timestamp: new Date(n.timestamp),
@@ -39,12 +45,11 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [newSessionKey, setNewSessionKey] = useState(0);
 
-  const loadNotes = useCallback(async () => {
+  const loadNotes = useCallback(() => {
     try {
-      const data = await api.getNotes();
-      setNotes(data.map(toLocalNote));
+      setNotes(getAllNotes().map(toLocalNote));
     } catch {
-      toast.error('Không thể tải nhật ký. Kiểm tra backend đã chạy chưa.');
+      toast.error('Không thể tải ghi chú trên máy này.');
     } finally {
       setLoading(false);
     }
@@ -84,14 +89,18 @@ export default function App() {
   }) => {
     try {
       if (currentNote) {
-        await api.updateNote(currentNote.id, { ...noteData, thinkingTime });
-        const updated: Note = { ...currentNote, ...noteData, thinkingTime };
-        setNotes((prev) => prev.map((n) => (n.id === currentNote.id ? updated : n)));
-        setCurrentNote(updated);
-        return updated;
+        const updated = updateNote(currentNote.id, { ...noteData, thinkingTime });
+        if (!updated) {
+          toast.error('Lưu ghi chú thất bại');
+          return null;
+        }
+        const local = toLocalNote(updated);
+        setNotes((prev) => prev.map((n) => (n.id === currentNote.id ? local : n)));
+        setCurrentNote(local);
+        return local;
       }
 
-      const created = await api.createNote({ ...noteData, thinkingTime });
+      const created = createNote({ ...noteData, thinkingTime });
       const newNote = toLocalNote(created);
       setNotes((prev) => [newNote, ...prev]);
       setCurrentNote(newNote);
@@ -141,7 +150,10 @@ export default function App() {
   const handleDeleteNote = async (id: string) => {
     if (!confirm('Bạn có chắc muốn xóa ghi chú này?')) return;
     try {
-      await api.deleteNote(id);
+      if (!deleteStoredNote(id)) {
+        toast.error('Xóa ghi chú thất bại');
+        return;
+      }
       setNotes((prev) => prev.filter((n) => n.id !== id));
       if (currentNote?.id === id) setCurrentNote(null);
       if (viewingNote?.id === id) {

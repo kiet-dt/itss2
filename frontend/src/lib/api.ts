@@ -18,15 +18,6 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
-export interface Note {
-  id: string;
-  timestamp: string;
-  pseudocode: string;
-  mindmap: MindmapFlowData | null;
-  problemStatement: string;
-  thinkingTime?: number;
-}
-
 export interface DashboardStats {
   thinkingScore: number;
   authenticityScore: number;
@@ -47,29 +38,6 @@ export interface DashboardStats {
 export type { AIAnalysisResult };
 
 export const api = {
-  getNotes: () => request<Note[]>('/notes'),
-
-  createNote: (data: {
-    pseudocode: string;
-    mindmap: MindmapFlowData | null;
-    problemStatement: string;
-    thinkingTime: number;
-  }) =>
-    request<Note>('/notes', { method: 'POST', body: JSON.stringify(data) }),
-
-  updateNote: (
-    id: string,
-    data: Partial<{
-      pseudocode: string;
-      mindmap: MindmapFlowData | null;
-      problemStatement: string;
-      thinkingTime: number;
-    }>
-  ) => request<{ id: string }>(`/notes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-
-  deleteNote: (id: string) =>
-    request<{ success: boolean }>(`/notes/${id}`, { method: 'DELETE' }),
-
   analyzeWithAI: (data: {
     problemStatement: string;
     pseudocode: string;
@@ -83,6 +51,4 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-
-  getDashboardStats: () => request<DashboardStats>('/stats/dashboard'),
 };
