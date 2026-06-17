@@ -168,12 +168,12 @@ export function WorkspaceView({
 
         <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 shrink-0">
           <div
-            className={`flex px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm shrink-0 ${
+            className={`flex px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm shrink-0 font-medium border ${
               tabLeaveCount > TAB_LEAVE_LIMIT
-                ? 'bg-destructive/10 text-destructive'
+                ? 'bg-destructive/10 text-destructive border-destructive/30 dark:bg-destructive/25 dark:text-red-300 dark:border-red-400/40'
                 : tabLeaveCount === TAB_LEAVE_LIMIT
-                  ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
-                  : 'bg-muted text-muted-foreground'
+                  ? 'bg-amber-500/10 text-amber-700 border-amber-500/30 dark:bg-amber-500/25 dark:text-amber-300 dark:border-amber-400/40'
+                  : 'bg-muted text-muted-foreground border-transparent dark:bg-secondary dark:text-foreground dark:border-border'
             }`}
             title="Số lần chuyển sang tab/cửa sổ khác trong khi timer đang chạy"
           >

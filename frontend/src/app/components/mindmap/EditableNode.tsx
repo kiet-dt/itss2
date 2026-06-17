@@ -73,7 +73,7 @@ function EditableNodeComponent({ id, data, selected }: NodeProps) {
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <div className="text-sm text-center font-medium break-words leading-snug">{nodeData.label}</div>
+          <div className="text-sm text-center font-medium break-words leading-snug text-foreground">{nodeData.label}</div>
         )}
       </div>
     </div>

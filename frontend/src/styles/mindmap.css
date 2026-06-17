@@ -131,6 +131,16 @@
   filter: none !important;
 }
 
+/* Xuất PNG dark mode — nền tối, chữ sáng, edge dễ nhìn */
+.mindmap-exporting.mindmap-exporting--dark .mindmap-node__body {
+  color: #f5f5f5 !important;
+}
+
+.mindmap-exporting.mindmap-exporting--dark .react-flow__edge .react-flow__edge-path {
+  stroke: #94a3b8 !important;
+  stroke-width: 2 !important;
+}
+
 /* React Flow controls & minimap — đồng bộ theme app */
 .mindmap-editor__viewport .mindmap-controls {
   border: 1px solid var(--border);

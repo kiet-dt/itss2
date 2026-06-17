@@ -66,6 +66,8 @@ type ContextMenuState = {
 
 const EDGE_COLOR = '#94a3b8';
 const EDGE_COLOR_SELECTED = '#2563eb';
+const EXPORT_BG_LIGHT = '#ffffff';
+const EXPORT_BG_DARK = '#252525';
 
 const mindmapEdgeDefaults = {
   type: 'smoothstep' as const,
@@ -141,7 +143,7 @@ function MindmapCanvasInner({ problemStatement, data, onChange, isActive = true 
   const flowWrapperRef = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
-  const { zoomIn, zoomOut, fitView, screenToFlowPosition, getNodesBounds, getViewport, setViewport, getNodes } = useReactFlow();
+  const { zoomIn, zoomOut, fitView, screenToFlowPosition, getNodesBounds, getNodes } = useReactFlow();
   const [isConnecting, setIsConnecting] = useState(false);
   const [selectedColor, setSelectedColor] = useState(DEFAULT_NODE_COLOR);
   const clipboardRef = useRef<ClipboardPayload | null>(null);
@@ -664,13 +666,12 @@ function MindmapCanvasInner({ problemStatement, data, onChange, isActive = true 
 
   const exportPng = useCallback(async () => {
     const wrapper = flowWrapperRef.current;
-    const el = wrapper?.querySelector('.react-flow') as HTMLElement | null;
-    if (!wrapper || !el || nodes.length === 0) {
+    const viewportEl = wrapper?.querySelector('.react-flow__viewport') as HTMLElement | null;
+    if (!wrapper || !viewportEl || nodes.length === 0) {
       toast.info('Không có node để xuất');
       return;
     }
 
-    const previousViewport = getViewport();
     const savedSelectedNodeIds = [...selectedNodes];
     const savedActiveEdgeId = activeEdgeId;
 
@@ -679,35 +680,59 @@ function MindmapCanvasInner({ problemStatement, data, onChange, isActive = true 
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
       });
 
+    const pngFilter = (node: HTMLElement) => {
+      const hidden = ['react-flow__controls', 'react-flow__minimap', 'react-flow__panel', 'react-flow__attribution'];
+      if (hidden.some((cls) => node.classList?.contains(cls))) return false;
+      if (node.closest?.('.react-flow__controls, .react-flow__minimap, .react-flow__panel, .react-flow__attribution')) {
+        return false;
+      }
+      return true;
+    };
+
+    const nodeFillSnapshots: Array<{ el: HTMLElement; bg: string }> = [];
+
     try {
       setSelectedNodes([]);
       setActiveEdgeId(null);
       setNodes((nds) => nds.map((n) => (n.selected ? { ...n, selected: false } : n)));
       await waitPaint();
 
-      const bounds = getNodesBounds(nodes);
-      const exportWidth = Math.max(800, Math.ceil(bounds.width + 120));
-      const exportHeight = Math.max(600, Math.ceil(bounds.height + 120));
-      const viewport = getViewportForBounds(bounds, exportWidth, exportHeight, 0.5, 2, 0.12);
-
-      setViewport(viewport);
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      const currentNodes = getNodes();
+      const bounds = getNodesBounds(currentNodes);
+      const padding = 80;
+      const imageWidth = Math.max(400, Math.ceil(bounds.width + padding * 2));
+      const imageHeight = Math.max(300, Math.ceil(bounds.height + padding * 2));
+      const exportViewport = getViewportForBounds(bounds, imageWidth, imageHeight, 0.5, 2, 0.1);
 
       wrapper.classList.add('mindmap-exporting');
+      if (isDark) wrapper.classList.add('mindmap-exporting--dark');
+
+      if (isDark) {
+        wrapper.querySelectorAll<HTMLElement>('.mindmap-node__body').forEach((el) => {
+          nodeFillSnapshots.push({ el, bg: el.style.backgroundColor });
+          const bg = el.style.backgroundColor;
+          if (/^#[0-9a-f]{6}18$/i.test(bg)) {
+            el.style.backgroundColor = bg.replace(/18$/i, '45');
+          }
+        });
+      }
+
       await waitPaint();
 
-      const dataUrl = await toPng(el, {
-        backgroundColor: '#ffffff',
-        pixelRatio: 2,
+      const dataUrl = await toPng(viewportEl, {
+        backgroundColor: isDark ? EXPORT_BG_DARK : EXPORT_BG_LIGHT,
+        width: imageWidth,
+        height: imageHeight,
+        pixelRatio: Math.min(2, window.devicePixelRatio || 1),
         cacheBust: true,
+        style: {
+          width: `${imageWidth}px`,
+          height: `${imageHeight}px`,
+          transform: `translate(${exportViewport.x}px, ${exportViewport.y}px) scale(${exportViewport.zoom})`,
+        },
         filter: (node) => {
           if (!(node instanceof HTMLElement)) return true;
-          const hidden = ['react-flow__controls', 'react-flow__minimap', 'react-flow__panel', 'react-flow__attribution'];
-          if (hidden.some((cls) => node.classList.contains(cls))) return false;
-          if (node.closest('.react-flow__controls, .react-flow__minimap, .react-flow__panel, .react-flow__attribution')) {
-            return false;
-          }
-          return true;
+          return pngFilter(node);
         },
       });
 
@@ -719,8 +744,10 @@ function MindmapCanvasInner({ problemStatement, data, onChange, isActive = true 
     } catch {
       toast.error('Xuất PNG thất bại');
     } finally {
-      wrapper?.classList.remove('mindmap-exporting');
-      setViewport(previousViewport);
+      wrapper?.classList.remove('mindmap-exporting', 'mindmap-exporting--dark');
+      nodeFillSnapshots.forEach(({ el, bg }) => {
+        el.style.backgroundColor = bg;
+      });
       setSelectedNodes(savedSelectedNodeIds);
       setActiveEdgeId(savedActiveEdgeId);
       setNodes((nds) =>
@@ -730,7 +757,7 @@ function MindmapCanvasInner({ problemStatement, data, onChange, isActive = true 
         }))
       );
     }
-  }, [nodes, selectedNodes, activeEdgeId, getNodesBounds, getViewport, setViewport, setNodes]);
+  }, [nodes, selectedNodes, activeEdgeId, isDark, getNodes, getNodesBounds, setNodes]);
 
   const onPaneContextMenu = useCallback((e: FlowPointerEvent) => {
     e.preventDefault();
